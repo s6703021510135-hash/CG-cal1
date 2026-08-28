@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รายงานผลการคำนวณจุดศูนย์ถ่วง (CG) — รถยนต์ / มอเตอร์ไซค์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f4ec;
+    --bg-grid:#e6e2d2;
+    --panel:#fbfaf5;
+    --panel-alt:#ffffff;
+    --ink:#201f1a;
+    --ink-dim:#6b6858;
+    --line:#201f1a;
+    --line-dim:#b6b2a0;
+    --red:#a13d2c;
+    --red-soft:rgba(161,61,44,0.08);
+    --border:#d8d4c2;
+    --border-strong:#201f1a;
+    --radius:2px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0/28px 28px,
+      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px) 0 0/28px 28px,
+      var(--bg);
+    color:var(--ink);
+    font-family:'Sarabun',sans-serif;
+    min-height:100vh;
+    padding:32px 18px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .wrap{max-width:1180px;margin:0 auto;background:var(--panel);border:1px solid var(--border-strong);}
+
+  /* header block: report title strip */
+  header{padding:26px 32px 20px;border-bottom:2px solid var(--border-strong);}
+  .kicker{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--red);margin-bottom:10px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;
+  }
+  h1{
+    font-weight:700;font-size:clamp(22px,3vw,29px);margin:0 0 6px;color:var(--ink);letter-spacing:.005em;
+  }
+  .sub{color:var(--ink-dim);font-size:14.5px;max-width:720px;line-height:1.7;font-weight:400;}
+
+  .tabs{display:flex;gap:0;margin-top:20px;border-top:1px solid var(--border);width:fit-content;}
+  .tab{
+    font-family:'Sarabun',sans-serif;font-weight:600;font-size:14.5px;
+    padding:10px 22px;background:transparent;color:var(--ink-dim);
+    cursor:pointer;user-select:none;border:none;border-bottom:3px solid transparent;
+    display:flex;align-items:center;gap:8px;transition:.15s;margin-bottom:-1px;
+  }
+  .tab svg{width:16px;height:16px;opacity:.6;}
+  .tab.active{color:var(--ink);border-bottom-color:var(--red);}
+  .tab:focus-visible{outline:2px solid var(--red);outline-offset:-2px;}
+
+  .body-content{padding:26px 32px 34px;}
+  .layout{display:grid;grid-template-columns:400px 1fr;gap:26px;}
+  @media (max-width:900px){.layout{grid-template-columns:1fr;}}
+
+  .section{margin-bottom:26px;}
+  .section-head{
+    display:flex;align-items:baseline;gap:9px;margin-bottom:4px;
+    border-bottom:1px solid var(--border);padding-bottom:8px;
+  }
+  .section-num{font-weight:700;font-size:16px;color:var(--ink);}
+  .section-title{font-weight:600;font-size:15.5px;color:var(--ink);}
+  .section-note{color:var(--ink-dim);font-size:12.5px;margin:8px 0 14px;line-height:1.6;}
+
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:11px;}
+  .field-row.single{grid-template-columns:1fr;}
+  label{display:block;font-size:12.5px;color:var(--ink-dim);margin-bottom:5px;font-weight:500;}
+  .unit{color:var(--red);font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
+  input[type=number], select{
+    width:100%;background:var(--panel-alt);border:1px solid var(--border);
+    color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:14px;
+    padding:8px 10px;border-radius:var(--radius);
+  }
+  input[type=number]:focus, select:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 1px var(--red);}
+  select{cursor:pointer;font-family:'Sarabun',sans-serif;}
+
+  .divider{height:1px;background:var(--border);margin:16px 0;}
+
+  .example-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-dim);
+    background:none;border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;
+    cursor:pointer;margin-top:6px;
+  }
+  .example-btn:hover{color:var(--red);border-color:var(--red);}
+
+  .error-box{
+    background:#f7e9e6;border:1px solid var(--red);color:#7c2d1f;
+    padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-top:12px;line-height:1.6;
+  }
+
+  /* Figure block */
+  .figure{border:1.5px solid var(--border-strong);background:var(--panel-alt);margin-bottom:8px;}
+  .figure-tabs{display:flex;border-bottom:1px solid var(--border);}
+  .dtab{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-dim);
+    background:transparent;border:none;border-right:1px solid var(--border);
+    padding:9px 16px;cursor:pointer;
+  }
+  .dtab.active{color:var(--red);background:var(--red-soft);}
+  .drawing-box{padding:10px;}
+  .drawing-box svg{width:100%;height:auto;display:block;}
+  .figure-caption{
+    text-align:center;font-size:12.5px;color:var(--ink-dim);padding:8px 10px 4px;
+    font-style:italic;border-top:1px dashed var(--border);
+  }
+  .figure-caption b{color:var(--ink);font-style:normal;}
+
+  .dim-line{stroke:var(--red);stroke-width:1.1;}
+  .ext-line{stroke:var(--line-dim);stroke-width:0.9;stroke-dasharray:3 3;}
+  .dim-label{fill:var(--red);font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
+  .body-line{stroke:var(--ink);stroke-width:1.4;fill:none;}
+  .body-fill{fill:rgba(32,31,26,0.03);}
+  .wheel{stroke:var(--ink);stroke-width:1.4;fill:var(--panel-alt);}
+  .ground{stroke:var(--ink);stroke-width:1.2;}
+  .centerline{stroke:var(--line-dim);stroke-width:0.9;stroke-dasharray:6 4;}
+  .cg-ring{fill:none;stroke:var(--red);stroke-width:1.4;}
+  .cg-cross{stroke:var(--red);stroke-width:1.4;}
+  .cg-label{fill:var(--red);font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;}
+
+  /* Results table */
+  table.results-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  table.results-table caption{
+    text-align:left;font-size:12.5px;color:var(--ink-dim);font-style:italic;padding-bottom:8px;caption-side:top;
+  }
+  table.results-table caption b{color:var(--ink);font-style:normal;}
+  table.results-table th{
+    text-align:left;font-weight:600;background:var(--red-soft);color:var(--ink);
+    border:1px solid var(--border-strong);padding:8px 12px;font-size:12.5px;
+  }
+  table.results-table td{
+    border:1px solid var(--border);padding:8px 12px;font-family:'IBM Plex Mono',monospace;color:var(--ink);
+  }
+  table.results-table td.param{font-family:'Sarabun',sans-serif;color:var(--ink-dim);}
+  table.results-table td.unit-col{color:var(--ink-dim);font-size:12px;}
+
+  details{margin-top:6px;background:var(--panel-alt);border:1px solid var(--border-strong);}
+  summary{
+    padding:12px 18px;cursor:pointer;font-weight:600;font-size:14px;color:var(--ink);
+    list-style:none;display:flex;align-items:center;gap:8px;border-bottom:1px solid transparent;
+  }
+  summary::-webkit-details-marker{display:none;}
+  summary::before{content:"▸";color:var(--red);transition:.15s;}
+  details[open] summary{border-bottom-color:var(--border);}
+  details[open] summary::before{transform:rotate(90deg);}
+  .formula-body{padding:6px 20px 18px;color:var(--ink-dim);font-size:13.5px;line-height:1.8;}
+  .formula-body p{margin:10px 0;}
+  .formula-body b{color:var(--ink);}
+  .eq{
+    display:block;margin:10px 0;padding:10px 14px;background:var(--panel);border:1px solid var(--border);
+    font-family:'IBM Plex Mono',monospace;color:var(--ink);font-size:13px;overflow-x:auto;position:relative;
+  }
+  .eq .eqnum{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--red);font-size:11.5px;}
+
+  footer{padding:16px 32px 24px;color:var(--ink-dim);font-size:12px;line-height:1.7;border-top:1px solid var(--border);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">
+      <span>ปฏิบัติการ · Static Weighing + Tilt-Table Method</span>
+      <span>CG-CALC / REV. 1</span>
+    </div>
+    <h1>เครื่องคำนวณตำแหน่งจุดศูนย์ถ่วง (Center of Gravity)</h1>
+    <p class="sub">กรอกน้ำหนักที่ชั่งได้จากแต่ละล้อ (ท่าราบ) และผลจากการยกด้านหนึ่งขึ้น ระบบจะคำนวณตำแหน่ง CG ตามยาว ตามขวาง (เฉพาะรถยนต์) และความสูงของ CG พร้อมแผนภาพประกอบมาตราส่วนและที่มาของสมการ</p>
+
+    <div class="tabs" role="tablist">
+      <button class="tab active" id="tabCar" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l1.5-4.5A2 2 0 0 1 6.4 7h11.2a2 2 0 0 1 1.9 1.5L21 13"/><rect x="3" y="13" width="18" height="5" rx="1"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>
+        รถยนต์ (4 ล้อ)
+      </button>
+      <button class="tab" id="tabMoto" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5.5" cy="17.5" r="2.8"/><circle cx="18.5" cy="17.5" r="2.8"/><path d="M5.5 17.5L10 10h4l2 4.5h3M10 10l-2-3.5"/></svg>
+        มอเตอร์ไซค์ (2 ล้อ)
+      </button>
+    </div>
+  </header>
+
+  <div class="body-content">
+  <div class="layout">
+    <!-- LEFT: INPUTS -->
+    <div>
+      <div class="section">
+        <div class="section-head"><span class="section-num">1.</span><span class="section-title">ข้อมูลนำเข้า — ชั่งน้ำหนักท่าราบ</span></div>
+        <p class="section-note">วางรถบนพื้นราบ ชั่งน้ำหนักแต่ละล้อพร้อมกัน (kg)</p>
+
+        <div id="carWeights">
+          <div class="field-row">
+            <div><label>ล้อหน้าซ้าย (FL) <span class="unit">kg</span></label><input type="number" id="FL" value="380"></div>
+            <div><label>ล้อหน้าขวา (FR) <span class="unit">kg</span></label><input type="number" id="FR" value="370"></div>
+          </div>
+          <div class="field-row">
+            <div><label>ล้อหลังซ้าย (RL) <span class="unit">kg</span></label><input type="number" id="RL" value="310"></div>
+            <div><label>ล้อหลังขวา (RR) <span class="unit">kg</span></label><input type="number" id="RR" value="330"></div>
+          </div>
+        </div>
+
+        <div id="motoWeights" style="display:none;">
+          <div class="field-row">
+            <div><label>ล้อหน้า (Wf) <span class="unit">kg</span></label><input type="number" id="mWf" value="90"></div>
+            <div><label>ล้อหลัง (Wr) <span class="unit">kg</span></label><input type="number" id="mWr" value="70"></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="field-row">
+          <div><label>ระยะฐานล้อ L (wheelbase) <span class="unit">mm</span></label><input type="number" id="L" value="2600"></div>
+          <div id="trackField"><label>ความกว้างฐานล้อ T (track) <span class="unit">mm</span></label><input type="number" id="T" value="1500"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><span class="section-num">2.</span><span class="section-title">ข้อมูลนำเข้า — ยกด้านหนึ่งขึ้น</span></div>
+        <p class="section-note">ยกปลายด้านหน้าหรือหลังขึ้นตามความสูงที่กำหนด แล้วชั่งน้ำหนักฝั่งที่ยังอยู่บนพื้น เพื่อใช้หาความสูงของ CG</p>
+
+        <div class="field-row">
+          <div>
+            <label>ปลายที่ยกขึ้น</label>
+            <select id="raisedEnd">
+              <option value="rear" selected>ยกด้านหลัง</option>
+              <option value="front">ยกด้านหน้า</option>
+            </select>
+          </div>
+          <div><label>ความสูงที่ยก H <span class="unit">mm</span></label><input type="number" id="H" value="500"></div>
+        </div>
+
+        <div class="field-row single">
+          <div>
+            <label id="tiltWeightLabel">น้ำหนักเพลาหน้ารวม หลังยกด้านหลัง (Wf') <span class="unit">kg</span></label>
+            <input type="number" id="tiltWeight" value="802">
+          </div>
+        </div>
+
+        <button class="example-btn" id="loadExample">↺ โหลดค่าตัวอย่าง</button>
+        <div id="errorBox"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: DIAGRAM + RESULTS -->
+    <div>
+      <div class="section">
+        <div class="section-head"><span class="section-num">3.</span><span class="section-title">แผนภาพประกอบ</span></div>
+        <div class="figure">
+          <div class="figure-tabs">
+            <button class="dtab active" data-view="top">มุมมองด้านบน</button>
+            <button class="dtab" data-view="side">มุมมองด้านข้าง</button>
+          </div>
+          <div class="drawing-box">
+            <svg id="svgTop" viewBox="0 0 640 340" xmlns="http://www.w3.org/2000/svg"></svg>
+            <svg id="svgSide" viewBox="0 0 640 340" xmlns="http://www.w3.org/2000/svg" style="display:none;"></svg>
+          </div>
+          <div class="figure-caption" id="figCaption"><b>รูปที่ 1</b> — มุมมองด้านบน แสดงตำแหน่ง CG ตามยาวและตามขวาง (มาตราส่วนอัตโนมัติ)</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><span class="section-num">4.</span><span class="section-title">ผลการคำนวณ</span></div>
+        <table class="results-table" id="resultsTable"></table>
+      </div>
+
+      <details>
+        <summary>5. ที่มาของสมการ (Derivation)</summary>
+        <div class="formula-body" id="formulaBody"></div>
+      </details>
+    </div>
+  </div>
+  </div>
+
+  <footer>
+    หมายเหตุ: สูตรความสูง CG อ้างอิงวิธี static + tilt-table method โดยสมมติว่ารัศมีล้อหน้า/หลังเท่ากัน และแรงปฏิกิริยาที่จุดรองรับตั้งฉากกับพื้น (แนวดิ่ง) ตลอดการทดลอง — หากล้อหน้า-หลังมีขนาดต่างกันมาก ควรชดเชยรัศมีล้อเพิ่มเติม
+  </footer>
+</div>
+
+<script>
+const els = id => document.getElementById(id);
+let mode = 'car';
+let diagView = 'top';
+
+function num(id){ const v = parseFloat(els(id).value); return isNaN(v) ? 0 : v; }
+
+// ---------- Mode switching ----------
+els('tabCar').addEventListener('click', () => setMode('car'));
+els('tabMoto').addEventListener('click', () => setMode('moto'));
+function setMode(m){
+  mode = m;
+  els('tabCar').classList.toggle('active', m==='car');
+  els('tabMoto').classList.toggle('active', m==='moto');
+  els('tabCar').setAttribute('aria-selected', m==='car');
+  els('tabMoto').setAttribute('aria-selected', m==='moto');
+  els('carWeights').style.display = m==='car' ? 'block' : 'none';
+  els('motoWeights').style.display = m==='moto' ? 'block' : 'none';
+  els('trackField').style.display = m==='car' ? 'block' : 'none';
+  loadExample(false);
+  updateAll();
+}
+
+document.querySelectorAll('.dtab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.dtab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    diagView = btn.dataset.view;
+    els('svgTop').style.display = diagView==='top' ? 'block' : 'none';
+    els('svgSide').style.display = diagView==='side' ? 'block' : 'none';
+    els('figCaption').innerHTML = diagView==='top'
+      ? '<b>รูปที่ 1</b> — มุมมองด้านบน แสดงตำแหน่ง CG ตามยาวและตามขวาง (มาตราส่วนอัตโนมัติ)'
+      : '<b>รูปที่ 2</b> — มุมมองด้านข้าง แสดงความสูงของ CG จากพื้น (มาตราส่วนอัตโนมัติ)';
+  });
+});
+
+// tilt weight label + raised-end select
+function refreshTiltLabel(){
+  const raised = els('raisedEnd').value;
+  const groundEnd = raised === 'rear' ? 'หน้า' : 'หลัง';
+  const symbol = raised === 'rear' ? "Wf'" : "Wr'";
+  if(mode === 'car'){
+    els('tiltWeightLabel').innerHTML = `น้ำหนักเพลา${groundEnd}รวม หลังยก (${symbol}) <span class="unit">kg</span>`;
+  } else {
+    els('tiltWeightLabel').innerHTML = `น้ำหนักล้อ${groundEnd} หลังยก (${symbol}) <span class="unit">kg</span>`;
+  }
+}
+els('raisedEnd').addEventListener('change', ()=>{ refreshTiltLabel(); updateAll(); });
+
+// ---------- Example data ----------
+function loadExample(recalc){
+  if(mode==='car'){
+    els('FL').value=380; els('FR').value=370; els('RL').value=310; els('RR').value=330;
+    els('L').value=2600; els('T').value=1500;
+    els('raisedEnd').value='rear'; els('H').value=500; els('tiltWeight').value=802;
+  } else {
+    els('mWf').value=90; els('mWr').value=70;
+    els('L').value=1400;
+    els('raisedEnd').value='rear'; els('H').value=350; els('tiltWeight').value=106;
+  }
+  refreshTiltLabel();
+  if(recalc !== false) updateAll();
+}
+els('loadExample').addEventListener('click', ()=>loadExample(true));
+
+['FL','FR','RL','RR','mWf','mWr','L','T','H','tiltWeight'].forEach(id=>{
+  const el = els(id);
+  if(el) el.addEventListener('input', updateAll);
+});
+
+// ---------- Core computation ----------
+function compute(){
+  let Wf, Wr, WL=null, WR=null, corners=null;
+  if(mode==='car'){
+    const FL=num('FL'), FR=num('FR'), RL=num('RL'), RR=num('RR');
+    Wf = FL+FR; Wr = RL+RR; WL = FL+RL; WR = FR+RR;
+    corners = {FL,FR,RL,RR};
+  } else {
+    Wf = num('mWf'); Wr = num('mWr');
+  }
+  const W = Wf + Wr;
+  const L = num('L');
+  const T = mode==='car' ? num('T') : null;
+  const raised = els('raisedEnd').value;
+  const H = num('H');
+  const tiltWeight = num('tiltWeight');
+
+  const errors = [];
+  if(W <= 0) errors.push('น้ำหนักรวมต้องมากกว่า 0');
+  if(L <= 0) errors.push('ระยะฐานล้อ L ต้องมากกว่า 0');
+  if(mode==='car' && T <= 0) errors.push('ความกว้างฐานล้อ T ต้องมากกว่า 0');
+  if(H <= 0) errors.push('ความสูงที่ยก H ต้องมากกว่า 0');
+  if(H >= L) errors.push('ความสูงที่ยก H ต้องน้อยกว่าระยะฐานล้อ L');
+
+  let result = {errors, W, Wf, Wr, WL, WR, L, T, corners, raised, H, tiltWeight};
+  if(errors.length) return result;
+
+  const distRearToCG  = Wf * L / W;
+  const distFrontToCG = Wr * L / W;
+
+  let distLeftToCG = null, distRightToCG = null;
+  if(mode==='car'){
+    distLeftToCG  = WR * T / W;
+    distRightToCG = WL * T / W;
+  }
+
+  const groundLevelWeight = raised === 'rear' ? Wf : Wr;
+  const theta = Math.asin(H / L);
+  const tanT = Math.tan(theta);
+  const heightCG = (tiltWeight - groundLevelWeight) * L / (W * tanT);
+
+  result = {...result, distRearToCG, distFrontToCG, distLeftToCG, distRightToCG,
+            heightCG, theta, groundLevelWeight};
+  if(heightCG < 0 || !isFinite(heightCG)){
+    result.errors.push('ค่าความสูง CG ที่คำนวณได้ผิดปกติ (ติดลบ/ไม่จำกัด) — ตรวจสอบว่ากรอกน้ำหนักฝั่งที่ยังอยู่บนพื้นถูกฝั่ง และน้ำหนักหลังยกมากกว่าก่อนยก');
+  }
+  return result;
+}
+
+// ---------- SVG helpers ----------
+function dimH(x1,x2,y,label){
+  const t=6;
+  return `<line class="dim-line" x1="${x1}" y1="${y-t}" x2="${x1}" y2="${y+t}"/>
+          <line class="dim-line" x1="${x2}" y1="${y-t}" x2="${x2}" y2="${y+t}"/>
+          <line class="dim-line" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"/>
+          <text class="dim-label" x="${(x1+x2)/2}" y="${y-9}" text-anchor="middle">${label}</text>`;
+}
+function dimV(y1,y2,x,label){
+  const t=6;
+  return `<line class="dim-line" x1="${x-t}" y1="${y1}" x2="${x+t}" y2="${y1}"/>
+          <line class="dim-line" x1="${x-t}" y1="${y2}" x2="${x+t}" y2="${y2}"/>
+          <line class="dim-line" x1="${x}" y1="${y1}" x2="${x}" y2="${y2}"/>
+          <text class="dim-label" x="${x+9}" y="${(y1+y2)/2}" transform="rotate(-90 ${x+9} ${(y1+y2)/2})" text-anchor="middle">${label}</text>`;
+}
+function frontRearTag(xRear,xFront,yRear,yFront){
+  return `<text class="dim-label" x="${xRear}" y="${yRear}" text-anchor="middle" style="fill:var(--ink-dim);font-weight:600;">◀ หลัง (REAR)</text>
+          <text class="dim-label" x="${xFront}" y="${yFront}" text-anchor="middle" style="fill:var(--ink-dim);font-weight:600;">หน้า (FRONT) ▶</text>`;
+}
+function cgMark(x,y,label){
+  return `<g>
+    <circle class="cg-ring" cx="${x}" cy="${y}" r="10"/>
+    <circle class="cg-ring" cx="${x}" cy="${y}" r="3.2"/>
+    <line class="cg-cross" x1="${x-15}" y1="${y}" x2="${x+15}" y2="${y}"/>
+    <line class="cg-cross" x1="${x}" y1="${y-15}" x2="${x}" y2="${y+15}"/>
+    <text class="cg-label" x="${x+16}" y="${y-14}">${label}</text>
+  </g>`;
+}
+
+function drawTop(r){
+  const svg = els('svgTop');
+  if(r.errors.length){ svg.innerHTML = emptyState(); return; }
+  const marginX = 90, marginY = 70;
+  const availW = 640 - marginX*2;
+  const availH = 340 - marginY*2;
+  const T = mode==='car' ? r.T : r.L*0.32;
+  const scale = Math.min(availW / r.L, availH / T);
+  const x0 = marginX, x1 = marginX + r.L*scale;
+  const cy = 340/2;
+  const halfT = T*scale/2;
+  const yTop = cy - halfT, yBot = cy + halfT;
+
+  let html = '';
+  html += `<line class="centerline" x1="${x0-20}" y1="${cy}" x2="${x1+20}" y2="${cy}"/>`;
+  html += frontRearTag(x0, x1, yTop-42, yTop-42);
+
+  if(mode==='car'){
+    html += `<rect class="body-line body-fill" x="${x0}" y="${yTop}" width="${x1-x0}" height="${yBot-yTop}" rx="6"/>`;
+    const wr=10;
+    [[x0,yTop],[x0,yBot],[x1,yTop],[x1,yBot]].forEach(([wx,wy])=>{
+      html += `<circle class="wheel" cx="${wx}" cy="${wy}" r="${wr}"/>`;
+    });
+    html += dimH(x0, x1, yBot+34, `L = ${r.L.toFixed(0)} mm`);
+    html += dimV(yTop, yBot, x0-34, `T = ${r.T.toFixed(0)} mm`);
+    const xcg = x0 + r.distRearToCG*scale;
+    html += dimH(x0, xcg, yTop-20, `${r.distRearToCG.toFixed(0)} mm`);
+    const ycg = yTop + r.distLeftToCG*scale;
+    html += `<line class="ext-line" x1="${xcg}" y1="${yTop}" x2="${xcg}" y2="${ycg}"/>`;
+    html += `<line class="ext-line" x1="${x0}" y1="${ycg}" x2="${xcg}" y2="${ycg}"/>`;
+    html += cgMark(xcg, ycg, 'CG');
+  } else {
+    html += `<line class="body-line" x1="${x0}" y1="${cy}" x2="${x1}" y2="${cy}"/>`;
+    html += `<circle class="wheel" cx="${x0}" cy="${cy}" r="13"/>`;
+    html += `<circle class="wheel" cx="${x1}" cy="${cy}" r="13"/>`;
+    html += dimH(x0, x1, cy+50, `L = ${r.L.toFixed(0)} mm`);
+    const xcg = x0 + r.distRearToCG*scale;
+    html += dimH(x0, xcg, cy-40, `${r.distRearToCG.toFixed(0)} mm`);
+    html += `<line class="ext-line" x1="${xcg}" y1="${cy-22}" x2="${xcg}" y2="${cy}"/>`;
+    html += cgMark(xcg, cy, 'CG');
+  }
+  svg.innerHTML = html;
+}
+
+function drawSide(r){
+  const svg = els('svgSide');
+  if(r.errors.length){ svg.innerHTML = emptyState(); return; }
+  const marginX = 90;
+  const groundY = 270;
+  const availW = 640 - marginX*2;
+  const wheelR = mode==='car' ? 22 : 30;
+  const scale = availW / r.L;
+  const x0 = marginX, x1 = marginX + r.L*scale;
+  const bodyH = r.L*scale*0.4;
+
+  let html = '';
+  html += `<line class="ground" x1="20" y1="${groundY+wheelR}" x2="620" y2="${groundY+wheelR}"/>`;
+  html += `<circle class="wheel" cx="${x0}" cy="${groundY}" r="${wheelR}"/>`;
+  html += `<circle class="wheel" cx="${x1}" cy="${groundY}" r="${wheelR}"/>`;
+  html += frontRearTag(x0, x1, groundY+wheelR+16, groundY+wheelR+16);
+  const bodyTop = groundY - wheelR - bodyH;
+  html += `<path class="body-line body-fill" d="M ${x0-18} ${groundY-wheelR*0.4}
+            L ${x0-10} ${bodyTop+bodyH*0.55}
+            L ${x0+18} ${bodyTop+bodyH*0.12}
+            L ${x1-30} ${bodyTop}
+            L ${x1+22} ${bodyTop+bodyH*0.45}
+            L ${x1+22} ${groundY-wheelR*0.4}
+            Z"/>`;
+
+  const xcg = x0 + r.distRearToCG*scale;
+  const ycg = (groundY) - r.heightCG*scale;
+  html += `<line class="ext-line" x1="20" y1="${ycg}" x2="${xcg}" y2="${ycg}"/>`;
+  html += dimV(groundY, ycg, x0-34, `h = ${r.heightCG.toFixed(0)} mm`);
+  html += dimH(x0, x1, groundY+wheelR+34, `L = ${r.L.toFixed(0)} mm`);
+  html += cgMark(xcg, ycg, 'CG');
+  svg.innerHTML = html;
+}
+
+function emptyState(){
+  return `<text x="320" y="160" text-anchor="middle" fill="#6b6858" font-family="IBM Plex Mono" font-size="13">กรอกข้อมูลให้ครบและถูกต้องเพื่อแสดงแผนภาพ</text>`;
+}
+
+// ---------- Results table ----------
+function renderResults(r){
+  const box = els('errorBox');
+  const table = els('resultsTable');
+  if(r.errors.length){
+    box.innerHTML = `<div class="error-box">${r.errors.map(e=>'⚠ '+e).join('<br>')}</div>`;
+    table.innerHTML = '';
+    return;
+  }
+  box.innerHTML = '';
+
+  let rows = [
+    ['น้ำหนักรวม (W)', r.W.toFixed(1), 'kg'],
+  ];
+  if(mode==='car') rows.push(['น้ำหนักเพลาหน้า / เพลาหลัง (Wf / Wr)', `${r.Wf.toFixed(1)} / ${r.Wr.toFixed(1)}`, 'kg']);
+  rows.push(['ระยะจากเพลาหน้าถึง CG', r.distFrontToCG.toFixed(1), 'mm']);
+  rows.push(['ระยะจากเพลาหลังถึง CG', r.distRearToCG.toFixed(1), 'mm']);
+  if(mode==='car'){
+    rows.push(['น้ำหนักด้านซ้าย / ด้านขวา (WL / WR)', `${r.WL.toFixed(1)} / ${r.WR.toFixed(1)}`, 'kg']);
+    rows.push(['ระยะจากด้านซ้ายถึง CG', r.distLeftToCG.toFixed(1), 'mm']);
+    rows.push(['ระยะจากด้านขวาถึง CG', r.distRightToCG.toFixed(1), 'mm']);
+  }
+  rows.push(['มุมเอียงขณะยก (θ)', (r.theta*180/Math.PI).toFixed(2), '°']);
+  rows.push(['ความสูง CG จากพื้น (h)', r.heightCG.toFixed(1), 'mm']);
+
+  table.innerHTML = `
+    <caption><b>ตารางที่ 1</b> — สรุปผลการคำนวณตำแหน่งจุดศูนย์ถ่วง</caption>
+    <thead><tr><th style="width:56%">รายการ</th><th style="width:24%">ค่า</th><th style="width:20%">หน่วย</th></tr></thead>
+    <tbody>
+      ${rows.map(([p,v,u])=>`<tr><td class="param">${p}</td><td>${v}</td><td class="unit-col">${u}</td></tr>`).join('')}
+    </tbody>`;
+}
+
+// ---------- Formula explanation ----------
+function renderFormula(){
+  const raised = els('raisedEnd').value;
+  const groundAxle = raised === 'rear' ? 'เพลาหน้า (Wf)' : 'เพลาหลัง (Wr)';
+  const tiltSym = raised === 'rear' ? "Wf'" : "Wr'";
+  const levelSym = raised === 'rear' ? "Wf" : "Wr";
+  els('formulaBody').innerHTML = `
+    <p><b>5.1 ตำแหน่ง CG ตามยาว</b> — จากผลรวมโมเมนต์รอบเพลาหน้าและเพลาหลังขณะรถอยู่ในแนวราบ:</p>
+    <div class="eq">ระยะจากเพลาหลังถึง CG = Wf × L / W
+ระยะจากเพลาหน้าถึง CG = Wr × L / W<span class="eqnum">(1)</span></div>
+    <p>โดย W = Wf + Wr คือน้ำหนักรวม และ L คือระยะฐานล้อ</p>
+
+    ${mode==='car' ? `
+    <p><b>5.2 ตำแหน่ง CG ตามขวาง</b> — ใช้หลักการเดียวกันกับด้านซ้าย/ขวา:</p>
+    <div class="eq">ระยะจากด้านซ้ายถึง CG = WR × T / W
+ระยะจากด้านขวาถึง CG = WL × T / W<span class="eqnum">(2)</span></div>
+    <p>โดย WL, WR คือผลรวมน้ำหนักฝั่งซ้ายและฝั่งขวา, T คือความกว้างฐานล้อ</p>
+    ` : ''}
+
+    <p><b>5.${mode==='car'?'3':'2'} ความสูงของ CG</b> — ใช้วิธียกปลายด้านหนึ่งขึ้นสูง H แล้ววัดมุมเอียง θ = asin(H/L) จากนั้นชั่งน้ำหนักฝั่งที่ยังแตะพื้น (${groundAxle}) อีกครั้งขณะเอียง:</p>
+    <div class="eq">h = (${tiltSym} − ${levelSym}) × L / (W × tanθ)<span class="eqnum">(${mode==='car'?'3':'2'})</span></div>
+    <p>ที่มา: จากสมดุลโมเมนต์รอบจุดสัมผัสล้อฝั่งที่ยังอยู่บนพื้น เมื่อตัวรถหมุนไปเป็นมุม θ รอบจุดหมุนนั้น น้ำหนักที่อ่านได้ฝั่งพื้นจะเปลี่ยนไปตามความสูงของ CG — ยิ่ง CG สูง ค่าน้ำหนักที่เปลี่ยนไปยิ่งมาก สมการที่ (${mode==='car'?'3':'2'}) จึงย้อนกลับไปหาความสูง h ได้ โดย h ที่ได้คือความสูงเหนือพื้น (ระนาบสัมผัสล้อ) ภายใต้สมมติฐานว่ารัศมีล้อหน้า-หลังเท่ากัน</p>
+  `;
+}
+
+// ---------- Master update ----------
+function updateAll(){
+  const r = compute();
+  renderResults(r);
+  drawTop(r);
+  drawSide(r);
+  renderFormula();
+}
+
+refreshTiltLabel();
+updateAll();
+</script>
+</body>
+</html>
